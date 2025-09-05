@@ -66,7 +66,6 @@ class MammothClient:
         self.session.headers.update({
             'X-API-KEY': self.api_key,
             'X-API-SECRET': self.api_secret,
-            'Content-Type': 'application/json',
             'User-Agent': 'mammoth-python-sdk/0.1.0'
         })
         
@@ -114,11 +113,11 @@ class MammothClient:
         
         if files:
             # Remove Content-Type header for multipart requests
-            headers = self.session.headers.copy()
-            headers.pop('Content-Type', None)
-            request_kwargs['headers'] = headers
             request_kwargs['files'] = files
         elif json:
+            headers = self.session.headers.copy()
+            request_kwargs['headers'] = headers
+            headers['Content-Type'] = 'application/json'
             request_kwargs['json'] = json
         
         # Make request with retries
