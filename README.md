@@ -82,7 +82,9 @@ if client.test_connection():
 
 #### Upload Files
 
-Upload single or multiple files to create datasets:
+Upload one or more files to create datasets. Each file will be treated as a
+separate dataset. If the file path contains a folder structure, that structure
+will be preserved, and the files will be placed in their respective folders.
 
 ```python
 # Single file
