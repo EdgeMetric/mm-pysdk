@@ -182,7 +182,6 @@ class FilesAPI:
                 params["override_target_schema"] = override_target_schema
             
             # Make upload request
-            breakpoint()
             response = self._client._request(
                 "POST",
                 f"/workspaces/{workspace_id}/projects/{project_id}/files",
@@ -196,12 +195,8 @@ class FilesAPI:
                 file_obj.close()
         
         # Parse job response
-        if isinstance(response, list):
-            job_responses = [ObjectJobSchema(**job_data) for job_data in response]
-            job_ids = [job.job_id for job in job_responses if job.job_id is not None]
-        else:
-            job_response = ObjectJobSchema(**response)
-            job_ids = [job_response.job_id] if job_response.job_id is not None else []
+        obj_jobs = [ObjectJobSchema(**obj_job) for obj_job in response]
+        job_ids = [job.job_id for job in obj_jobs if job.job_id is not None]
         
         if not wait_for_completion:
             return job_ids
