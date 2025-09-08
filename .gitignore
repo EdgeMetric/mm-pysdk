@@ -1,0 +1,32 @@
+# Bytecode
+__pycache__/
+*.py[cod]
+.pyc
+
+# Environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Testing / coverage
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDEs
+.idea/
+.vscode/
+
+# Type checker
+.mypy_cache/
+.pytype/
+.pyre/
+
