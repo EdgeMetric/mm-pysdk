@@ -136,7 +136,7 @@ class FilesAPI:
             workspace_id: ID of the workspace
             project_id: ID of the project
             files: File(s) to upload - can be file paths, Path objects, or file-like objects
-            folder_resource_id: Resource ID of target folder
+            folder_resource_id: Resource ID of target folder. This is the resource ID of the Mammoth folder
             append_to_ds_id: Dataset ID to append to (if appending to existing dataset)
             override_target_schema: Whether to override target schema when appending
             wait_for_completion: Whether to wait for upload processing to complete
