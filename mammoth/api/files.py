@@ -126,7 +126,7 @@ class FilesAPI:
         override_target_schema: Optional[bool] = None,
         wait_for_completion: bool = True,
         timeout: int = 300
-    ) -> Union[List[int], int]:
+    ) -> Union[List[int], int, None]:
         """
         Upload one or more files to create datasets. Each file will be treated as a
         separate dataset. If the file path contains a folder structure, that structure
