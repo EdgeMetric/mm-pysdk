@@ -4,6 +4,7 @@ Data models for the Mammoth Analytics SDK.
 
 from .files import *
 from .jobs import *
+from .exports import *
 
 __all__ = [
     # Files models
@@ -22,4 +23,13 @@ __all__ = [
     "JobsGetResponse", 
     "ObjectJobSchema",
     "JobStatus",
+    # Exports models
+    "HandlerType",
+    "TriggerType",
+    "ExportStatus",
+    "S3TargetProperties",
+    "AddExportSpec",
+    "ItemExportInfo",
+    "PipelineExportsPaginated",
+    "PipelineExportsModificationResp",
 ]

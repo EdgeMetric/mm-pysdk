@@ -6,6 +6,8 @@ import requests
 from typing import Optional, Dict, Any, Union, List
 from urllib.parse import urljoin
 
+from .api.exports import ExportsAPI
+
 from .exceptions import MammothAPIError, MammothAuthError
 from .api.files import FilesAPI
 from .api.jobs import JobsAPI
@@ -72,6 +74,7 @@ class MammothClient:
         # Initialize API clients
         self.files = FilesAPI(self)
         self.jobs = JobsAPI(self)
+        self.exports = ExportsAPI(self)
     
     def _request(
         self,

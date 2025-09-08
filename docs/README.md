@@ -74,26 +74,31 @@ docs/
    - File listing and filtering
    - File management operations
    - Excel file handling
+   - 
+6. **[Exports API](api/exports.md)**
+   - List exports in the dataview pipeline
+   - Export to Mammoth internal dataset
+   - Export to External source like CSV, S3, Database
 
-6. **[Jobs API](api/jobs.md)**
+8. **[Jobs API](api/jobs.md)**
    - Job tracking methods
    - Asynchronous operation monitoring
    - Job status management
    - Batch job processing
 
-7. **[Data Models](api/models)**
+9. **[Data Models](api/models)**
    - Request/response schemas
    - Pydantic model definitions
    - Type annotations
    - Validation rules
 
-8. **[Exceptions](api/exceptions.md)**
+10. **[Exceptions](api/exceptions.md)**
    - Exception hierarchy
    - Error handling patterns
    - Custom exception types
    - Error recovery strategies
 
-9. **[Utilities](api/utilities.md)**
+11. **[Utilities](api/utilities.md)**
    - Helper functions
    - Date formatting utilities
    - File validation tools
@@ -176,6 +181,7 @@ docs/
 ### For API Reference
 - **Client Setup**: [MammothClient](api/client.md)
 - **File Operations**: [Files API](api/files.md)
+- **Export Operations**: [Exports API](api/exports.md)
 - **Job Tracking**: [Jobs API](api/jobs.md)
 - **Data Types**: [Models](api/models)
 - **Error Handling**: [Exceptions](api/exceptions.md)
