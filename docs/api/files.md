@@ -458,6 +458,6 @@ except MammothJobFailedError:
 ## See Also
 
 - [Jobs API Reference](jobs.md) - Track file processing jobs
-- [Data Models](models.md) - Complete model definitions
+- [Data Models](models) - Complete model definitions
 - [File Operations Examples](../examples/file-operations.md) - Detailed examples
 - [Error Handling](../examples/error-handling.md) - Handle file operation errors

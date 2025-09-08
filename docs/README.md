@@ -19,6 +19,10 @@ docs/
 │   ├── exceptions.md             # Exception handling reference
 │   └── utilities.md              # Utility functions
 │
+├── models/                          # Models Reference Documentation
+│   ├── files.md                  # Files Models reference
+│   ├── jobs.md                   # Jobs Models reference
+│
 ├── examples/                     # Examples and Guides
 │   ├── basic-usage.md           # Basic usage examples
 │   ├── file-operations.md       # Advanced file operations
@@ -77,7 +81,7 @@ docs/
    - Job status management
    - Batch job processing
 
-7. **[Data Models](api/models.md)**
+7. **[Data Models](api/models)**
    - Request/response schemas
    - Pydantic model definitions
    - Type annotations
@@ -173,7 +177,7 @@ docs/
 - **Client Setup**: [MammothClient](api/client.md)
 - **File Operations**: [Files API](api/files.md)
 - **Job Tracking**: [Jobs API](api/jobs.md)
-- **Data Types**: [Models](api/models.md)
+- **Data Types**: [Models](api/models)
 - **Error Handling**: [Exceptions](api/exceptions.md)
 
 ### For Advanced Usage

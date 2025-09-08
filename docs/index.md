@@ -31,7 +31,7 @@ dataset_id = client.files.upload_files(
 - [Client](api/client.md) - MammothClient configuration and methods
 - [Files API](api/files.md) - File upload, management, and operations
 - [Jobs API](api/jobs.md) - Asynchronous job tracking and monitoring
-- [Data Models](api/models.md) - Request/response schemas and types
+- [Data Models](api/models) - Request/response schemas and types
 - [Exceptions](api/exceptions.md) - Error handling and custom exceptions
 - [Utilities](api/utilities.md) - Helper functions and utilities
 
