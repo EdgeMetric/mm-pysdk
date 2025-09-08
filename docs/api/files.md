@@ -14,7 +14,10 @@ files_api = client.files
 
 ### upload_files()
 
-Upload one or more files to create datasets. Each file becomes a separate dataset.
+Upload one or more files to create datasets. Each file will be treated as a separate dataset.
+If the file path contains a folder structure, that structure will be preserved, and the files
+will be placed in their respective folders
+
 
 ```python
 upload_files(
@@ -33,7 +36,7 @@ upload_files(
 - `workspace_id` (int): ID of the workspace
 - `project_id` (int): ID of the project
 - `files`: File(s) to upload - can be file paths, Path objects, or file-like objects
-- `folder_resource_id` (str, optional): Resource ID of target folder
+- `folder_resource_id` (str, optional): Resource ID of target folder. Note that this is the resource ID of Mamoth folder
 - `append_to_ds_id` (int, optional): Dataset ID to append to (for existing dataset)
 - `override_target_schema` (bool, optional): Whether to override target schema when appending
 - `wait_for_completion` (bool): Whether to wait for upload processing to complete. Defaults to True
