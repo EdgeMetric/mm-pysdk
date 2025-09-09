@@ -39,7 +39,7 @@ class MammothClient:
         self,
         api_key: str,
         api_secret: str,
-        base_url: str = "https://api.mammoth.io",
+        base_url: str = "https://app.mammoth.io/api/v2",
         timeout: int = 30,
         max_retries: int = 3
     ):
