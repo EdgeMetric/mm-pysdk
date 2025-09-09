@@ -268,7 +268,7 @@ class ExportsAPI:
         dataview_id: int,
         output_path: Optional[Union[str, Path]] = None,
         timeout: int = 300
-    ) -> str:
+    ) -> Path:
         """
         Download dataview data as a CSV file.
         
@@ -284,7 +284,7 @@ class ExportsAPI:
             timeout: Timeout in seconds to wait for export completion (default: 300)
             
         Returns:
-            str: Path to the downloaded CSV file
+            Path: Path to the downloaded CSV file
             
         Raises:
             MammothAPIError: If the API request fails
@@ -301,7 +301,7 @@ class ExportsAPI:
         # Create export job using the existing add_export method
         export_spec = AddExportSpec(
             DATAVIEW_ID=dataview_id,
-            handler_type=HandlerType.CSV_FILE,
+            handler_type=HandlerType.S3,
             trigger_type=TriggerType.NONE,
             target_properties={
                 "file": f"temp_export_{dataset_id}_{dataview_id}.csv",
@@ -343,7 +343,7 @@ class ExportsAPI:
         # Download the CSV file
         return self._download_file(download_url, output_path)
     
-    def _download_file(self, url: str, output_path: Path) -> str:
+    def _download_file(self, url: str, output_path: Path) -> Path:
         """
         Download a file from the given URL.
         
@@ -371,7 +371,7 @@ class ExportsAPI:
                     if chunk:
                         f.write(chunk)
             
-            return str(output_path)
+            return output_path
             
         except requests.exceptions.RequestException as e:
             from ..exceptions import MammothAPIError
