@@ -180,9 +180,9 @@ def postgres_to_mammoth_example():
 
 ## CSV Export Workflows
 
-### Round-trip Data Processing Workflow
+### Exporting Mammoth Data to External Sources
 
-This section demonstrates how to create a complete data processing pipeline where data flows from external sources into Mammoth, gets processed, and then exported back to external systems via CSV downloads.
+This section demonstrates how to export data from Mammoth dataviews and push it to external systems like PostgreSQL.
 
 ```python
 import os
@@ -193,121 +193,8 @@ from mammoth.exceptions import MammothAPIError
 import tempfile
 from pathlib import Path
 
-class MammothDataPipeline:
-    """Complete data pipeline for round-trip processing."""
-    
-    def __init__(self, mammoth_client: MammothClient, workspace_id: int, project_id: int):
-        self.mammoth = mammoth_client
-        self.workspace_id = workspace_id
-        self.project_id = project_id
-    
-    def ingest_from_file(self, file_path: str) -> int:
-        """Step 1: Ingest data from local file into Mammoth."""
-        try:
-            dataset_id = self.mammoth.files.upload_files(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                files=file_path
-            )
-            print(f"Uploaded file to Mammoth dataset: {dataset_id}")
-            return dataset_id
-        except MammothAPIError as e:
-            print(f"Failed to upload file: {e}")
-            raise
-    
-    def ingest_from_postgres(self, postgres_conn_str: str, query: str, dataset_name: str) -> int:
-        """Step 1: Ingest data from PostgreSQL into Mammoth."""
-        temp_file = None
-        try:
-            # Create temporary CSV
-            temp_file = tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False, 
-                prefix=f"{dataset_name}_"
-            )
-            
-            # Export PostgreSQL data to CSV
-            with psycopg2.connect(postgres_conn_str) as conn:
-                df = pd.read_sql_query(query, conn)
-                df.to_csv(temp_file.name, index=False)
-            
-            temp_file.close()
-            
-            # Upload to Mammoth
-            dataset_id = self.mammoth.files.upload_files(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                files=temp_file.name
-            )
-            
-            print(f"Imported PostgreSQL data to Mammoth dataset: {dataset_id}")
-            return dataset_id
-            
-        finally:
-            if temp_file and Path(temp_file.name).exists():
-                Path(temp_file.name).unlink()
-    
-    def process_data_in_mammoth(self, dataset_id: int) -> int:
-        """Step 2: Process data in Mammoth and create a dataview."""
-        # Create a dataview with your processing logic
-        # This is where you would apply transformations, aggregations, etc.
-        try:
-            dataview_id = self.mammoth.dataviews.create_dataview(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                dataset_id=dataset_id,
-                name="Processed Data",
-                # Add your processing configuration here
-            )
-            print(f"Created processed dataview: {dataview_id}")
-            return dataview_id
-        except MammothAPIError as e:
-            print(f"Failed to create dataview: {e}")
-            raise
-    
-    def export_as_csv(self, dataview_id: int, output_path: str = None) -> str:
-        """Step 3: Export processed dataview as CSV."""
-        try:
-            # Download the dataview data as CSV
-            csv_content = self.mammoth.dataviews.download_as_csv(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                dataview_id=dataview_id
-            )
-            
-            # Save to file
-            if not output_path:
-                output_path = f"mammoth_export_{dataview_id}.csv"
-            
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(csv_content)
-            
-            print(f"Exported dataview to CSV: {output_path}")
-            return output_path
-            
-        except MammothAPIError as e:
-            print(f"Failed to export CSV: {e}")
-            raise
-    
-    def load_csv_to_postgres(self, csv_file_path: str, postgres_conn_str: str, 
-                           table_name: str, if_exists: str = "replace"):
-        """Step 4: Load exported CSV back into PostgreSQL."""
-        try:
-            # Read the CSV file
-            df = pd.read_csv(csv_file_path)
-            
-            # Connect to PostgreSQL and load data
-            with psycopg2.connect(postgres_conn_str) as conn:
-                df.to_sql(table_name, conn, if_exists=if_exists, index=False)
-            
-            print(f"Loaded CSV data to PostgreSQL table: {table_name}")
-            
-        except Exception as e:
-            print(f"Failed to load CSV to PostgreSQL: {e}")
-            raise
-
-# Complete workflow example
-def complete_data_processing_workflow():
-    """Example of complete round-trip data processing workflow."""
+def export_mammoth_to_postgres():
+    """Export dataview data from Mammoth to PostgreSQL."""
     
     # Initialize Mammoth client
     mammoth_client = MammothClient(
@@ -315,147 +202,61 @@ def complete_data_processing_workflow():
         api_secret=os.getenv("MAMMOTH_API_SECRET")
     )
     
-    # PostgreSQL connection
-    postgres_conn = "postgresql://user:password@localhost:5432/database"
-    
-    # Initialize pipeline
-    pipeline = MammothDataPipeline(
-        mammoth_client=mammoth_client,
-        workspace_id=1,
-        project_id=1
-    )
-    
-    # === WORKFLOW EXAMPLE 1: File-based processing ===
-    print("=== File-based Processing Workflow ===")
-    
-    # Step 1: Upload local file to Mammoth
-    source_file = "/path/to/your/data.csv"
-    dataset_id = pipeline.ingest_from_file(source_file)
-    
-    # Step 2: Process data in Mammoth (create dataview)
-    dataview_id = pipeline.process_data_in_mammoth(dataset_id)
-    
-    # Step 3: Export processed data as CSV
-    exported_csv = pipeline.export_as_csv(dataview_id, "processed_data.csv")
-    
-    # Step 4: Load back to PostgreSQL
-    pipeline.load_csv_to_postgres(
-        csv_file_path=exported_csv,
-        postgres_conn_str=postgres_conn,
-        table_name="processed_results"
-    )
-    
-    # === WORKFLOW EXAMPLE 2: PostgreSQL round-trip ===
-    print("\n=== PostgreSQL Round-trip Workflow ===")
-    
-    # Step 1: Extract data from PostgreSQL source table
-    source_query = """
-        SELECT customer_id, product_id, quantity, price, order_date
-        FROM raw_sales_data 
-        WHERE order_date >= CURRENT_DATE - INTERVAL '7 days'
-    """
-    
-    dataset_id = pipeline.ingest_from_postgres(
-        postgres_conn_str=postgres_conn,
-        query=source_query,
-        dataset_name="weekly_sales"
-    )
-    
-    # Step 2: Process in Mammoth (aggregations, transformations, etc.)
-    dataview_id = pipeline.process_data_in_mammoth(dataset_id)
-    
-    # Step 3: Export processed results
-    exported_csv = pipeline.export_as_csv(dataview_id, "sales_summary.csv")
-    
-    # Step 4: Load results back to PostgreSQL
-    pipeline.load_csv_to_postgres(
-        csv_file_path=exported_csv,
-        postgres_conn_str=postgres_conn,
-        table_name="sales_summary_weekly",
-        if_exists="replace"
-    )
-    
-    print("Workflow completed successfully!")
-
-# Advanced workflow with error handling and logging
-def production_workflow_example():
-    """Production-ready workflow with comprehensive error handling."""
-    
-    import logging
-    
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+    workspace_id = 1
+    project_id = 1
+    dataview_id = 123  # Your dataview ID
     
     try:
-        mammoth_client = MammothClient(
-            api_key=os.getenv("MAMMOTH_API_KEY"),
-            api_secret=os.getenv("MAMMOTH_API_SECRET")
+        # Step 1: Export dataview data as CSV using add_export
+        csv_content = mammoth_client.dataviews.add_export(
+            workspace_id=workspace_id,
+            project_id=project_id,
+            dataview_id=dataview_id,
+            export_type="csv"
         )
         
-        pipeline = MammothDataPipeline(
-            mammoth_client=mammoth_client,
-            workspace_id=int(os.getenv("MAMMOTH_WORKSPACE_ID")),
-            project_id=int(os.getenv("MAMMOTH_PROJECT_ID"))
+        # Step 2: Save CSV to temporary file
+        temp_file = tempfile.NamedTemporaryFile(
+            mode='w', suffix='.csv', delete=False
         )
         
-        postgres_conn = os.getenv("POSTGRES_CONNECTION_STRING")
+        with open(temp_file.name, 'w', encoding='utf-8') as f:
+            f.write(csv_content)
         
-        # Data extraction with retry logic
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                dataset_id = pipeline.ingest_from_postgres(
-                    postgres_conn_str=postgres_conn,
-                    query="SELECT * FROM source_table WHERE status = 'pending'",
-                    dataset_name="pending_records"
-                )
-                break
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                if attempt == max_retries - 1:
-                    raise
+        print(f"Downloaded dataview data to: {temp_file.name}")
         
-        # Processing
-        dataview_id = pipeline.process_data_in_mammoth(dataset_id)
+        # Step 3: Push to PostgreSQL
+        postgres_conn = "postgresql://user:password@localhost:5432/database"
         
-        # Export with timestamp
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_path = f"exports/processed_data_{timestamp}.csv"
+        # Read CSV and load to PostgreSQL
+        df = pd.read_csv(temp_file.name)
         
-        exported_csv = pipeline.export_as_csv(dataview_id, export_path)
+        with psycopg2.connect(postgres_conn) as conn:
+            # Insert data into PostgreSQL table
+            df.to_sql('mammoth_export', conn, if_exists='replace', index=False)
         
-        # Load to destination
-        pipeline.load_csv_to_postgres(
-            csv_file_path=exported_csv,
-            postgres_conn_str=postgres_conn,
-            table_name="processed_results"
-        )
+        print("Successfully exported Mammoth data to PostgreSQL")
         
-        logger.info("Production workflow completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Workflow failed: {e}")
+    except MammothAPIError as e:
+        print(f"Mammoth API error: {e}")
         raise
+    except Exception as e:
+        print(f"Export failed: {e}")
+        raise
+    finally:
+        # Clean up temporary file
+        if temp_file and Path(temp_file.name).exists():
+            Path(temp_file.name).unlink()
 
 if __name__ == "__main__":
-    complete_data_processing_workflow()
+    export_mammoth_to_postgres()
 ```
 
-### Key Benefits of This Workflow
+### Key Benefits
 
-1. **Flexible Data Sources**: Works with both file uploads and database connections
-2. **Mammoth Processing Power**: Leverage Mammoth's analytics capabilities for data transformation
-3. **Seamless Export**: Use the `download_as_csv` functionality to get processed results
-4. **External Integration**: Push results back to PostgreSQL or other systems
-5. **Production Ready**: Includes error handling, logging, and retry mechanisms
-
-### Common Use Cases
-
-- **Data Quality Workflows**: Import raw data, apply cleansing rules, export clean datasets
-- **Analytics Workflows**: Pull operational data, perform analysis, push insights back to applications
-- **Batch Processing**: Scheduled workflows for regular data processing tasks
+- **Simple Export**: Use `add_export` to download dataview data as CSV
+- **Direct Integration**: Push exported data directly to PostgreSQL or other databases
+- **Lightweight**: Minimal code for maximum functionality
 
 ## See Also
 
