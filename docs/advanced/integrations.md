@@ -184,13 +184,19 @@ def postgres_to_mammoth_example():
 
 This section demonstrates how to export data from Mammoth dataviews and push it to external systems like PostgreSQL.
 
+#### How Exporting Mammoth Data to External Sources is Achieved:
+
+• **Download**: Use the `download_dataview_csv()` utility function which creates an export job, monitors completion, and returns the local file path
+• **Process**: Load the downloaded CSV data using pandas or similar tools
+• **Transfer**: Push the processed data to external destinations (databases, APIs, file systems)
+• **Cleanup**: Remove temporary files after successful transfer
+
 ```python
 import os
 import psycopg2
 import pandas as pd
 from mammoth import MammothClient
 from mammoth.exceptions import MammothAPIError
-import tempfile
 from pathlib import Path
 
 def export_mammoth_to_postgres():
@@ -204,32 +210,29 @@ def export_mammoth_to_postgres():
     
     workspace_id = 1
     project_id = 1
-    dataview_id = 123  # Your dataview ID
+    dataset_id = 123  # Your dataset ID
+    dataview_id = 456  # Your dataview ID
     
     try:
-        # Step 1: Export dataview data as CSV using add_export
-        csv_content = mammoth_client.dataviews.add_export(
+        # Step 1: Download dataview data as CSV using the utility function
+        # This function internally uses add_export but handles job monitoring
+        csv_file_path = mammoth_client.exports.download_dataview_csv(
             workspace_id=workspace_id,
             project_id=project_id,
+            dataset_id=dataset_id,
             dataview_id=dataview_id,
-            export_type="csv"
+            output_path="mammoth_export.csv",
+            timeout=300  # 5 minutes timeout for large datasets
         )
         
-        # Step 2: Save CSV to temporary file
-        temp_file = tempfile.NamedTemporaryFile(
-            mode='w', suffix='.csv', delete=False
-        )
+        print(f"Downloaded dataview data to: {csv_file_path}")
         
-        with open(temp_file.name, 'w', encoding='utf-8') as f:
-            f.write(csv_content)
-        
-        print(f"Downloaded dataview data to: {temp_file.name}")
+        # Step 2: Load CSV data
+        df = pd.read_csv(csv_file_path)
+        print(f"Loaded {len(df)} rows from Mammoth dataview")
         
         # Step 3: Push to PostgreSQL
         postgres_conn = "postgresql://user:password@localhost:5432/database"
-        
-        # Read CSV and load to PostgreSQL
-        df = pd.read_csv(temp_file.name)
         
         with psycopg2.connect(postgres_conn) as conn:
             # Insert data into PostgreSQL table
@@ -244,9 +247,10 @@ def export_mammoth_to_postgres():
         print(f"Export failed: {e}")
         raise
     finally:
-        # Clean up temporary file
-        if temp_file and Path(temp_file.name).exists():
-            Path(temp_file.name).unlink()
+        # Clean up CSV file
+        if 'csv_file_path' in locals() and Path(csv_file_path).exists():
+            Path(csv_file_path).unlink()
+            print(f"Cleaned up temporary file: {csv_file_path}")
 
 if __name__ == "__main__":
     export_mammoth_to_postgres()
@@ -254,9 +258,10 @@ if __name__ == "__main__":
 
 ### Key Benefits
 
-- **Simple Export**: Use `add_export` to download dataview data as CSV
-- **Direct Integration**: Push exported data directly to PostgreSQL or other databases
-- **Lightweight**: Minimal code for maximum functionality
+- **Automated Job Management**: `download_dataview_csv()` handles export job creation and monitoring
+- **File Path Return**: Returns the local file path for immediate processing
+- **Error Handling**: Built-in timeout and error handling for export operations
+- **Direct Integration**: Seamlessly push exported data to external systems
 
 ## See Also
 
