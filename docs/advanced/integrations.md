@@ -2,180 +2,169 @@
 
 This guide demonstrates how to integrate the Mammoth Python SDK with various databases, and other systems for production workflows.
 
-## Database Integrations
+## External Data Source Integrations
+
+This section demonstrates how to pull data from external sources and upload it to Mammoth using CSV files.
 
 ### PostgreSQL Integration
+
+Pull data from PostgreSQL and upload to Mammoth:
 
 ```python
 import os
 import csv
 import psycopg2
+import pandas as pd
 from mammoth import MammothClient
 from mammoth.exceptions import MammothAPIError
 import tempfile
 from pathlib import Path
-import logging
 
-logger = logging.getLogger(__name__)
-
-class PostgreSQLMammothBridge:
-    """Bridge between PostgreSQL and Mammoth Analytics."""
+def import_postgres_to_mammoth():
+    """Import data from PostgreSQL into Mammoth."""
     
-    def __init__(self, 
-                 mammoth_client: MammothClient,
-                 postgres_connection_string: str,
-                 workspace_id: int,
-                 project_id: int):
-        self.mammoth = mammoth_client
-        self.postgres_conn_str = postgres_connection_string
-        self.workspace_id = workspace_id
-        self.project_id = project_id
-    
-    def export_query_to_mammoth(self, 
-                               query: str, 
-                               dataset_name: str,
-                               chunk_size: int = 10000) -> int:
-        """Export PostgreSQL query results to Mammoth as a dataset."""
-        
-        temp_file = None
-        try:
-            # Create temporary CSV file
-            temp_file = tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False, 
-                prefix=f"{dataset_name}_"
-            )
-            
-            # Connect to PostgreSQL and execute query
-            with psycopg2.connect(self.postgres_conn_str) as conn:
-                with conn.cursor() as cursor:
-                    logger.info(f"Executing query for {dataset_name}")
-                    cursor.execute(query)
-                    
-                    # Write CSV header
-                    column_names = [desc[0] for desc in cursor.description]
-                    writer = csv.writer(temp_file)
-                    writer.writerow(column_names)
-                    
-                    # Write data in chunks
-                    row_count = 0
-                    while True:
-                        rows = cursor.fetchmany(chunk_size)
-                        if not rows:
-                            break
-                        
-                        writer.writerows(rows)
-                        row_count += len(rows)
-                        logger.debug(f"Exported {row_count} rows so far")
-            
-            temp_file.close()
-            logger.info(f"Exported {row_count} rows to {temp_file.name}")
-            
-            # Upload to Mammoth
-            dataset_id = self.mammoth.files.upload_files(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                files=temp_file.name
-            )
-            
-            logger.info(f"Successfully created dataset {dataset_id} from PostgreSQL query")
-            return dataset_id
-            
-        except psycopg2.Error as e:
-            logger.error(f"PostgreSQL error: {e}")
-            raise
-        except MammothAPIError as e:
-            logger.error(f"Mammoth API error: {e}")
-            raise
-        finally:
-            # Clean up temporary file
-            if temp_file and Path(temp_file.name).exists():
-                Path(temp_file.name).unlink()
-    
-    def sync_table_to_mammoth(self, 
-                             table_name: str, 
-                             where_clause: str = None,
-                             append_mode: bool = False,
-                             existing_dataset_id: int = None) -> int:
-        """Sync a PostgreSQL table to Mammoth."""
-        
-        # Build query
-        query = f"SELECT * FROM {table_name}"
-        if where_clause:
-            query += f" WHERE {where_clause}"
-        
-        # Handle append mode
-        if append_mode and existing_dataset_id:
-            return self.append_query_to_dataset(query, existing_dataset_id)
-        else:
-            return self.export_query_to_mammoth(query, table_name)
-    
-    def append_query_to_dataset(self, query: str, dataset_id: int) -> int:
-        """Append query results to existing Mammoth dataset."""
-        
-        temp_file = None
-        try:
-            temp_file = tempfile.NamedTemporaryFile(
-                mode='w', suffix='.csv', delete=False
-            )
-            
-            # Export data
-            with psycopg2.connect(self.postgres_conn_str) as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(query)
-                    
-                    column_names = [desc[0] for desc in cursor.description]
-                    writer = csv.writer(temp_file)
-                    writer.writerow(column_names)
-                    writer.writerows(cursor.fetchall())
-            
-            temp_file.close()
-            
-            # Append to existing dataset
-            result_dataset_id = self.mammoth.files.upload_files(
-                workspace_id=self.workspace_id,
-                project_id=self.project_id,
-                files=temp_file.name,
-                append_to_ds_id=dataset_id
-            )
-            
-            return result_dataset_id
-            
-        finally:
-            if temp_file and Path(temp_file.name).exists():
-                Path(temp_file.name).unlink()
-
-# Usage example
-def postgres_to_mammoth_example():
-    """Example of PostgreSQL to Mammoth integration."""
-    
-    # Initialize clients
+    # Initialize Mammoth client
     mammoth_client = MammothClient(
         api_key=os.getenv("MAMMOTH_API_KEY"),
         api_secret=os.getenv("MAMMOTH_API_SECRET")
     )
     
+    workspace_id = 1
+    project_id = 1
     postgres_conn = "postgresql://user:password@localhost:5432/database"
     
-    bridge = PostgreSQLMammothBridge(
-        mammoth_client=mammoth_client,
-        postgres_connection_string=postgres_conn,
-        workspace_id=1,
-        project_id=1
+    try:
+        # Step 1: Pull data from PostgreSQL
+        query = """
+            SELECT customer_id, name, email, total_orders, last_order_date
+            FROM customers 
+            WHERE created_date >= '2024-01-01'
+        """
+        
+        # Export to CSV
+        csv_file = "postgres_customers.csv"
+        with psycopg2.connect(postgres_conn) as conn:
+            df = pd.read_sql(query, conn)
+            df.to_csv(csv_file, index=False)
+            print(f"Exported {len(df)} rows to {csv_file}")
+        
+        # Step 2: Upload CSV to Mammoth
+        dataset_id = mammoth_client.files.upload_files(
+            workspace_id=workspace_id,
+            project_id=project_id,
+            files=csv_file
+        )
+        
+        print(f"Successfully uploaded to Mammoth dataset: {dataset_id}")
+        
+    except psycopg2.Error as e:
+        print(f"PostgreSQL error: {e}")
+        raise
+    except MammothAPIError as e:
+        print(f"Mammoth API error: {e}")
+        raise
+    finally:
+        # Clean up CSV file
+        if Path(csv_file).exists():
+            Path(csv_file).unlink()
+
+if __name__ == "__main__":
+    import_postgres_to_mammoth()
+```
+
+### HubSpot Integration
+
+Pull data from HubSpot CRM and upload to Mammoth:
+
+```python
+import os
+import pandas as pd
+import requests
+from mammoth import MammothClient
+from mammoth.exceptions import MammothAPIError
+from pathlib import Path
+
+def import_hubspot_to_mammoth():
+    """Import data from HubSpot into Mammoth."""
+    
+    # Initialize Mammoth client
+    mammoth_client = MammothClient(
+        api_key=os.getenv("MAMMOTH_API_KEY"),
+        api_secret=os.getenv("MAMMOTH_API_SECRET")
     )
     
-    # Export sales data from last month
-    sales_query = """
-        SELECT order_id, customer_id, product_id, quantity, price, order_date
-        FROM sales 
-        WHERE order_date >= CURRENT_DATE - INTERVAL '30 days'
-    """
+    workspace_id = 1
+    project_id = 1
+    hubspot_api_key = os.getenv("HUBSPOT_API_KEY")
     
-    dataset_id = bridge.export_query_to_mammoth(
-        query=sales_query,
-        dataset_name="monthly_sales"
-    )
-    
-    print(f"Sales data exported to Mammoth dataset: {dataset_id}")
+    try:
+        # Step 1: Pull contacts from HubSpot API
+        url = "https://api.hubapi.com/crm/v3/objects/contacts"
+        headers = {
+            "Authorization": f"Bearer {hubspot_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        params = {
+            "properties": "firstname,lastname,email,company,createdate,lastmodifieddate",
+            "limit": 100
+        }
+        
+        contacts = []
+        while url:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            contacts.extend(data.get("results", []))
+            
+            # Check for next page
+            url = data.get("paging", {}).get("next", {}).get("link")
+            params = None  # Only use params for first request
+        
+        print(f"Retrieved {len(contacts)} contacts from HubSpot")
+        
+        # Step 2: Convert to DataFrame and save as CSV
+        df_data = []
+        for contact in contacts:
+            properties = contact.get("properties", {})
+            df_data.append({
+                "contact_id": contact.get("id"),
+                "first_name": properties.get("firstname", ""),
+                "last_name": properties.get("lastname", ""),
+                "email": properties.get("email", ""),
+                "company": properties.get("company", ""),
+                "created_date": properties.get("createdate", ""),
+                "last_modified": properties.get("lastmodifieddate", "")
+            })
+        
+        df = pd.DataFrame(df_data)
+        csv_file = "hubspot_contacts.csv"
+        df.to_csv(csv_file, index=False)
+        print(f"Saved {len(df)} contacts to {csv_file}")
+        
+        # Step 3: Upload CSV to Mammoth
+        dataset_id = mammoth_client.files.upload_files(
+            workspace_id=workspace_id,
+            project_id=project_id,
+            files=csv_file
+        )
+        
+        print(f"Successfully uploaded to Mammoth dataset: {dataset_id}")
+        
+    except requests.exceptions.RequestException as e:
+        print(f"HubSpot API error: {e}")
+        raise
+    except MammothAPIError as e:
+        print(f"Mammoth API error: {e}")
+        raise
+    finally:
+        # Clean up CSV file
+        if Path(csv_file).exists():
+            Path(csv_file).unlink()
+
+if __name__ == "__main__":
+    import_hubspot_to_mammoth()
 ```
 
 ## CSV Export Workflows
