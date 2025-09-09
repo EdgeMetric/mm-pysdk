@@ -58,16 +58,16 @@ class AddExportSpec(BaseModel):
     """Specification for adding export tasks to dataview pipeline."""
     
     DATAVIEW_ID: int = Field(..., description="The ID of the View (dataview) from which data will be exported")
-    sequence: Optional[int] = Field(None, description="The position of this export task in the pipeline execution order. If None, appended to end.")
-    TRIGGER_ID: Optional[int] = Field(None, description="Optional ID of the trigger that initiates this export. When non-None, it means the export is being edited otherwise, export is being added")
-    end_of_pipeline: bool = Field(True, description="Whether this export should execute at the end of the pipeline after all transformations")
+    sequence: Optional[int] = Field(description="The position of this export task in the pipeline execution order. If None, appended to end.", default=None)
+    TRIGGER_ID: Optional[int] = Field(description="Optional ID of the trigger that initiates this export. When non-None, it means the export is being edited otherwise, export is being added", default=None)
+    end_of_pipeline: bool = Field(description="Whether this export should execute at the end of the pipeline after all transformations", default=True)
     handler_type: HandlerType = Field(..., description="The type of export handler (destination type) for this export operation")
     trigger_type: TriggerType = Field(..., description="The type of trigger that controls when this export executes")
     target_properties: Union[S3TargetProperties, Dict[str, Any]] = Field(..., description="Configuration properties specific to the export destination")
     additional_properties: Dict[str, Any] = Field(..., description="Additional configuration options for the export operation")
-    condition: Dict[str, Any] = Field(default_factory=dict, description="Conditional logic that determines what data from the view should be exported. Empty dict means no conditions.")
+    condition: dict[str, Any] = Field(description="Conditional logic that determines what data from the view should be exported. Empty dict means no conditions.", default=dict())
     run_immediately: bool = Field(..., description="Whether to execute this export task immediately upon creation")
-    validate_only: bool = Field(False, description="Whether to only validate the export configuration without executing it. Useful for testing.")
+    validate_only: bool = Field(description="Whether to only validate the export configuration without executing it. Useful for testing.", default=False)
 
 
 class ItemExportInfo(BaseModel):

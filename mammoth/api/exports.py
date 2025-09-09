@@ -2,12 +2,14 @@
 Exports API client for managing dataview pipeline exports in Mammoth.
 """
 
-from typing import List, Optional, Union
+from typing import Optional, Union
 from ..models.exports import (
     PipelineExportsPaginated, AddExportSpec, PipelineExportsModificationResp,
     HandlerType, TriggerType, ExportStatus
 )
 from ..models.jobs import JobResponse
+from pathlib import Path
+import requests
 
 
 class ExportsAPI:
@@ -257,3 +259,123 @@ class ExportsAPI:
         )
         
         return self.add_export(workspace_id, project_id, dataset_id, dataview_id, export_spec)
+
+    def download_dataview_csv(
+        self,
+        workspace_id: int,
+        project_id: int,
+        dataset_id: int,
+        dataview_id: int,
+        output_path: Optional[Union[str, Path]] = None,
+        timeout: int = 300
+    ) -> str:
+        """
+        Download dataview data as a CSV file.
+        
+        This utility function creates a CSV export job, waits for completion, 
+        and downloads the resulting CSV file from the provided URL.
+        
+        Args:
+            workspace_id: ID of the workspace
+            project_id: ID of the project
+            dataset_id: ID of the dataset
+            dataview_id: ID of the dataview to export
+            output_path: Path where to save the CSV file. If None, uses a default name
+            timeout: Timeout in seconds to wait for export completion (default: 300)
+            
+        Returns:
+            str: Path to the downloaded CSV file
+            
+        Raises:
+            MammothAPIError: If the API request fails
+            MammothJobTimeoutError: If export job times out
+            MammothJobFailedError: If export job fails
+            ValueError: If the job response doesn't contain a download URL
+        """
+        # Determine output file path
+        if output_path is None:
+            output_path = f"dataview_{dataset_id}_{dataview_id}_export.csv"
+        
+        output_path = Path(output_path)
+        
+        # Create export job using the existing add_export method
+        export_spec = AddExportSpec(
+            DATAVIEW_ID=dataview_id,
+            handler_type=HandlerType.CSV_FILE,
+            trigger_type=TriggerType.NONE,
+            target_properties={
+                "file": f"temp_export_{dataset_id}_{dataview_id}.csv",
+                "file_type": "csv",
+                "include_hidden": False,
+                "is_format_set": True,
+                "use_format": True
+            },
+            additional_properties={},
+            condition={},
+            run_immediately=True,
+            validate_only=False,
+            end_of_pipeline=True
+        )
+        
+        # Create the export job
+        export_result = self.add_export(workspace_id, project_id, dataset_id, dataview_id, export_spec)
+        
+        # Extract job ID from the result
+        job_id = None
+        if isinstance(export_result, JobResponse):
+            job_id = export_result.job.id if export_result.job else None
+        elif hasattr(export_result, 'future_id') and export_result.future_id:
+            # If we get a modification response with future_id, use that as job_id
+            job_id = export_result.future_id
+        
+        if not job_id:
+            raise ValueError("Export job was not created successfully - no job ID returned")
+        
+        # Wait for job completion using the existing jobs API
+        completed_job = self._client.jobs.wait_for_job(job_id, timeout=timeout)
+        
+        # Extract download URL from job response
+        if not completed_job.response or 'url' not in completed_job.response:
+            raise ValueError("Export job completed but no download URL was provided")
+        
+        download_url = completed_job.response['url']
+        
+        # Download the CSV file
+        return self._download_file(download_url, output_path)
+    
+    def _download_file(self, url: str, output_path: Path) -> str:
+        """
+        Download a file from the given URL.
+        
+        Args:
+            url: URL to download from
+            output_path: Path where to save the file
+            
+        Returns:
+            str: Path to the downloaded file
+            
+        Raises:
+            MammothAPIError: If download fails
+        """
+        try:
+            # Use the client's session to maintain authentication if needed
+            response = self._client.session.get(url, stream=True, timeout=self._client.timeout)
+            response.raise_for_status()
+            
+            # Create directory if it doesn't exist
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Download file in chunks
+            with open(output_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            return str(output_path)
+            
+        except requests.exceptions.RequestException as e:
+            from ..exceptions import MammothAPIError
+            raise MammothAPIError(f"Failed to download file: {str(e)}")
+        except IOError as e:
+            from ..exceptions import MammothAPIError
+            raise MammothAPIError(f"Failed to save file: {str(e)}")
