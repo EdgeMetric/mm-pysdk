@@ -75,6 +75,9 @@ if client.test_connection():
 - Many operations are asynchronous and return job IDs
 - Use the Jobs API to track progress and get results
 - The SDK automatically handles job waiting for file uploads
+ 
+ 
+## [API Reference](docs/README.md)
 
 ## Support
 
