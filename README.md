@@ -77,7 +77,7 @@ if client.test_connection():
 - The SDK automatically handles job waiting for file uploads
  
  
-## [API Reference](docs/README.md)
+## [API Reference](docs)
 
 ## Support
 
