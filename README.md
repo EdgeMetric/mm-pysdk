@@ -81,7 +81,7 @@ if client.test_connection():
 
 ## Support
 
-- **Documentation**: [https://mammoth.io/docs](https://mammoth.io/docs)
+- **Mammoth Analytics Documentation**: [https://mammoth.io/docs](https://mammoth.io/docs)
 - **Issues**: [GitHub Issues](https://github.com/EdgeMetric/mm-pysdk/issues)
 
 ## License
